@@ -1,0 +1,38 @@
+{
+    "BA_500_3": {
+        "num": 8,
+        "type": "BA",
+        "n": 500,
+        "m": 3,
+        "beta": 0.3,
+        "gamma": 1.0,
+        "simulations": 10000
+    },
+    "BA_1000_5": {
+        "num": 8,
+        "type": "BA",
+        "n": 1000,
+        "m": 5,
+        "beta": 0.25,
+        "gamma": 1.0,
+        "simulations": 10000
+    },
+    "BA_1000_8": {
+        "num": 8,
+        "type": "BA",
+        "n": 1000,
+        "m": 8,
+        "beta": 0.15,
+        "gamma": 1.0,
+        "simulations": 10000
+    },
+    "BA_1000_15": {
+        "num": 8,
+        "type": "BA",
+        "n": 1000,
+        "m": 15,
+        "beta": 0.1,
+        "gamma": 1.0,
+        "simulations": 10000
+    }
+}
