@@ -49,7 +49,7 @@ def calculate_beta_c(G):
 # --- GPU 模拟器类 ---
 class GPU_SIR_Simulator:
     def __init__(self, graph_path, beta, gamma):
-        self.beta = beta
+        self.beta = min(beta, 1.0)
         self.gamma = gamma
 
         # 1. 读取图并转换为 CSR 稀疏矩阵 (移至 GPU)
@@ -88,10 +88,10 @@ class GPU_SIR_Simulator:
         results = {}
 
         # 将 seeds 扩充，例如 seeds=[1, 2], sims=2 => expanded_seeds=[1, 1, 2, 2]
-        expanded_seeds_indices = []
-        for s in seeds:
-            s_idx = self.node_map[s]
-            expanded_seeds_indices.extend([s_idx] * num_sims_per_seed)
+        seed_indices = [self.node_map[s] for s in seeds]
+        # np.repeat 会生成 [s1, s1, ..., s2, s2, ...] 这样的数组
+        # int32 相比 Python Int 对象极度省内存
+        expanded_seeds_indices = np.repeat(seed_indices, num_sims_per_seed).astype(np.int32)
 
         expanded_seeds_indices = np.array(expanded_seeds_indices)
 
@@ -179,10 +179,15 @@ class GPU_SIR_Simulator:
                     results[node_real_id] = []
                 results[node_real_id].append(inf_val)
 
-        # --- 关键修改 1: 一个 Batch 跑完后，立刻释放 GPU 临时显存 ---
-        # 虽然是局部变量，但手动释放池可以防止碎片化堆积
-        del status, I_mask, infected_neighbor_counts, infection_prob, rand_vals
-        cp.get_default_memory_pool().free_all_blocks()
+            # --- 关键修改 1: 一个 Batch 跑完后，立刻释放 GPU 临时显存 ---
+            # 虽然是局部变量，但手动释放池可以防止碎片化堆积
+            del status, I_mask, infected_neighbor_counts, infection_prob, rand_vals, new_infections, current_infected
+            if 'recovering' in locals():  # 如果 gamma <1
+                del recovering
+            cp.get_default_memory_pool().free_all_blocks()
+            cp.get_default_pinned_memory_pool().free_all_blocks()  # 可选，释放 pinned mem
+            gc.collect()  # 强制 Python GC
+
         # 计算平均值
         final_output = {k: np.mean(v) for k, v in results.items()}
         return final_output
@@ -221,9 +226,8 @@ def SIR_GPU_Driver(graph_path, labels_path, network_params):
 
     influence = {}
 
-    # 定义每次处理多少个种子节点 (根据显存大小调整，可以设大一点)
     # 比如一次处理 100 个种子，每个种子跑 simulations 次 -> 矩阵宽 100 * sims
-    SEED_BATCH_SIZE = 512
+    SEED_BATCH_SIZE = 128
 
     for i in tqdm(range(0, num_nodes, SEED_BATCH_SIZE), desc="GPU Batches"):
         batch_nodes = node_list[i: i + SEED_BATCH_SIZE]
@@ -281,7 +285,7 @@ def get_optimal_batch_limit(num_nodes, total_memory_mb, safety_margin=0.95):
 
     # 4. 上下限截断
     # 设个上限防止太小图时数字过大导致溢出 int 范围或 Python 循环过慢
-    max_limit = 5000000  # 最大允许 500万
+    max_limit = 500000  # 最大允许 50万
     min_limit = 10000  # 最小允许 1万
 
     batch_limit = max(min_limit, min(batch_limit, max_limit))
@@ -331,6 +335,7 @@ def GenerateSIRLabel(DATASET_PATH, LABELS_PATH, network_params):
         for graph_path, labels_path, name in entries:
             os.makedirs(os.path.dirname(labels_path), exist_ok=True)
             GetLabel(graph_path, labels_path, name, params)
+
 
 
 if __name__ == '__main__':
