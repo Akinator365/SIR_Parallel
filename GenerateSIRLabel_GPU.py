@@ -309,20 +309,6 @@ def GenerateSIRLabel(DATASET_PATH, LABELS_PATH, network_params):
             # 如果 GPU 显存炸了或者没环境，可以回退到 CPU
             # SIR_Multiple_Dynamic(graph_path, labels_path, params)
 
-        # 转换为 numpy 数组
-        # 注意：需要单独处理转换，因为 SIR_GPU_Driver 已经写了 txt
-        if os.path.exists(txt_filepath):
-            # 读取label，转换为array (你可以直接用你原来的 Conver_to_Array)
-            with open(txt_filepath, "r") as f:
-                lines = f.readlines()
-                # 确保排序正确
-                labels = []
-                for line in lines:
-                    parts = line.strip().split("\t")
-                    if len(parts) >= 2:
-                        labels.append(float(parts[1]))
-                np.save(labels_path + '.npy', np.array(labels))
-
     # ... (后续的循环遍历逻辑不变) ...
     for network in network_params:
         # ... Copy your original loop code here ...

@@ -104,7 +104,7 @@ python GenerateSIRLabel_GPU.py
 
 3. 计算每个节点的平均影响力
 
-4. 结果保存为`.txt`和`.npy`格式到`data/labels/`目录下
+4. 结果保存为`.txt`格式到`data/labels/`目录下
 
 ## 参数配置详解
 
